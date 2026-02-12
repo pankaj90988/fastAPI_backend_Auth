@@ -49,18 +49,15 @@ async def register_user(request:Request,data:pendingRegistration_schema):
     
     # OTP generation
     otp=generate_otp()
-    print("Otp: ",otp)
-
+   
     # Adding otp field to save it temperory for verification
     dict_data['otp']=otp
     
     # user_model to save data in Database
     user_model_obj=user_model(**dict_data)
-    print("user-model:",user_model_obj.model_dump())
 
     created_user= await pending_collection.insert_one(user_model_obj.model_dump())
     
-
     email=dict_data['email']
     # Send email through to user by using Sendgrid
     sending_status=sendgrid_mail_to_user(email,otp)
@@ -102,13 +99,11 @@ async def verify_otp(request:Request,otp_data:verifyOTP_schema):
             # Actual registration data saved in this auth collection
             await authCollection.insert_one(pending_user)
             delete_re=await pending_collection.delete_one({"email":dict_otp_data['email']})
-            print("from inside if ->try",delete_re)
     
             return{
                 "msg":"Your account verified successfully",
             }
         except Exception as e:
-            print("from verify except:",e)
             raise HTTPException(status.HTTP_400_BAD_REQUEST,detail="Some thing went wrong in verifying otp")
     else:
         return{
@@ -166,7 +161,6 @@ async def forgot_password_generate_code(request:Request,reset_code_data:resetCod
     pending_collection=request.app.state.pending_collection
     auth_collection=request.app.state.auth_collection
     email=resetcode_dict['email']
-    print(email)
     user_existance=await auth_collection.find_one({"email":email})
     if not user_existance:
         raise HTTPException(status.HTTP_400_BAD_REQUEST,detail="Sorry!😌 We couldn't find any account with this email")
@@ -205,7 +199,6 @@ async def reset_password(request:Request,reset_data:resetPassword_schema):
     auth_collection=request.app.state.auth_collection
     pending_collection=request.app.state.pending_collection
     resetdata_dict=dict(reset_data)
-    print("reset password:",resetdata_dict['email'])
     account_existance=await auth_collection.find_one({"email":resetdata_dict['email']})
     if not account_existance:
         raise HTTPException(status.HTTP_400_BAD_REQUEST,detail="Sorry!😌 We couldn't find any account with this email")
@@ -228,7 +221,6 @@ async def reset_password(request:Request,reset_data:resetPassword_schema):
 
         # deleting the pending collection of OTP
         await pending_collection.delete_one({"email":email})
-        print("From reset:",resul)
 
         return{
             "msg":"Your password has been updated now"

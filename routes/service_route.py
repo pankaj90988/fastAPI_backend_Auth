@@ -48,7 +48,6 @@ async def add_new_services(service_data:List[service_model],request:Request):
         dict_service.append(dict(data))
 
     inserte_data=await service_collection.insert_many(dict_service)
-    print(str(inserte_data.inserted_ids))
     return{
         "msg":"data added successfully"
     }

@@ -25,7 +25,6 @@ async def life_span(app:FastAPI):
        app.state.contact_collection=db_name['contacts']
        app.state.service_collection=db_name['services']
        app.state.pending_collection=db_name['pending_registration']
-    #    await app.state.pending_collection.drop_index('created_at_1')
        await app.state.pending_collection.create_index('created_at',expireAfterSeconds=300)
     except Exception as e:
         print(f"Error occur at startup:{e}")
@@ -40,9 +39,9 @@ async def life_span(app:FastAPI):
         
 app=FastAPI(
     lifespan=life_span,
-    # docs_url=None,
-    # redoc_url=None,
-    # openapi_url=None
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
 ) #FastAPI Instance
 
 
