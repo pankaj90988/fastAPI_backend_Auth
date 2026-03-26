@@ -7,7 +7,7 @@ load_dotenv()
 SENDER_EMAIL=os.getenv('SENDER_EMAIL',"")
 SENDER_EMAIL_PASSWORD=os.getenv('SENDER_EMAIL_PASSWORD',"")
 
-def send_smtp_email(user_email,otp,specific_html_content):
+async def send_smtp_email(user_email,otp,specific_html_content):
     msg=EmailMessage()
     msg['SUBJECT']="Verify your account"
     msg['FROM']=SENDER_EMAIL
