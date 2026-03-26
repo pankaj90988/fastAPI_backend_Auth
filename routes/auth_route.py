@@ -222,9 +222,10 @@ async def forgot_password_generate_code(request:Request,reset_code_data:resetCod
 </div>
 """
     sending_status=await send_smtp_email(email,otp,html_content)
+    print("Sending status: ",sending_status)
 
     if not sending_status:
-         raise HTTPException(status_code=500,detail="Something went wrong. Please try again later!")
+         raise HTTPException(status_code=500,detail="Something went wrong smtp server. Please try again later!")
     
     created_user= await pending_collection.insert_one(resetcode_dict)
     return{
