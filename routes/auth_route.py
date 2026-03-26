@@ -12,6 +12,7 @@ from schemas.auth_schema import ForgotPasswordVerificationCode as resetCode_sche
 from schemas.auth_schema import ResetPassword as resetPassword_schema
 from utils.generate_jwt_token import generate_jwt_token_for_user
 from utils.sendgrid_mail_to_user import sendgrid_mail_to_user
+from utils.send_email_via_smtp import send_smtp_email
 from utils.hash_password import hashed_user_password
 from utils.otp_generate import generate_otp
 from utils.generate_session_id import generate_session_for_user
@@ -38,6 +39,10 @@ async def register_user(request:Request,data:pendingRegistration_schema):
     if user_existance:
         raise HTTPException(status.HTTP_400_BAD_REQUEST,detail="User already exist with this email")
     
+    pending_otp=await pending_collection.find_one({"email":dict_data['email']})
+    if pending_otp:
+        raise HTTPException(status_code=403,detail="Try to register after 5 minutes.")
+    
     # convert user password string --> in bytes
     user_password_bytes=dict_data['password'].encode('utf-8')
 
@@ -55,13 +60,29 @@ async def register_user(request:Request,data:pendingRegistration_schema):
     
     # user_model to save data in Database
     user_model_obj=user_model(**dict_data)
-
-    created_user= await pending_collection.insert_one(user_model_obj.model_dump())
     
     email=dict_data['email']
     # Send email through to user by using Sendgrid
-    sending_status=sendgrid_mail_to_user(email,otp)
+    html_content=f"""
+              <div style="font-family: Arial, sans-serif; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+                      <h2 style="color: #333;">Account Verification Code</h2>
+                      <p>Hello,</p>
+                      <p>Thank you for signing up with us. Please use the following OTP (One-Time Password) code to verify your account:</p>
+                      <div style="background: #f4f4f4; padding: 10px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #007bff;">
+                          {otp}
+                      </div>
+                      <p>This OTP is valid only for 5 minutes. Please do not share it with anyone.</p>
+                      <br>
+                      <p>Best Regards,<br>Panku IT Services,<br>From NIT Patna</p>
+                      <p style="margin: 5px 0 0 0; font-size: 12px; color: #95a5a6;">Ayodhya, Uttar Pradesh, India | support pankajnitp2304128@gmail.com</p>
+              </div>
+             """
+    sending_status=send_smtp_email(email,otp,html_content)
     # sending_status=True
+    if not sending_status:
+         raise HTTPException(status_code=500,detail="Something went wrong. Please try again later!")  
+       
+    created_user= await pending_collection.insert_one(user_model_obj.model_dump())
     inserted_id=str(created_user.inserted_id)
 
     if sending_status:
@@ -70,9 +91,7 @@ async def register_user(request:Request,data:pendingRegistration_schema):
             "id":inserted_id
         }
     else:
-        return{
-            "msg":"Something went wrong"
-        }
+        raise HTTPException(status_code=500,detail="Something went wrong")
     
 
 """
@@ -106,9 +125,7 @@ async def verify_otp(request:Request,otp_data:verifyOTP_schema):
         except Exception as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST,detail="Some thing went wrong in verifying otp")
     else:
-        return{
-            "msg":"OTP session expired or you entered wrong OTP !"
-        }
+        raise  HTTPException(status_code=403,detail="OTP session expired or you entered wrong OTP !")
    
 
 
@@ -126,7 +143,7 @@ async def check_user_login_credential(request:Request,data:login_schema):
     user_existance=await authCollection.find_one({"email":dict_data['email']})
     # check that user have already account or not
     if not user_existance:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST,detail="Sorry!😌 We couldn't find any account with this email")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,detail="Sorry! We couldn't find any account with this email")
     
     hashed_password_from_db=user_existance['password']
     
@@ -163,30 +180,59 @@ async def forgot_password_generate_code(request:Request,reset_code_data:resetCod
     email=resetcode_dict['email']
     user_existance=await auth_collection.find_one({"email":email})
     if not user_existance:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST,detail="Sorry!😌 We couldn't find any account with this email")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,detail="Sorry! We couldn't find any account with this email")
     
     pending_otp=await pending_collection.find_one({"email":email})
     if pending_otp:
-        return{
-            "msg":"Sorry! To generate OTP come after 5 minutes"
-        }
+        raise HTTPException(status_code=403,detail="Sorry! To generate OTP came after 5 minutes")
     
     otp=generate_otp()
     resetcode_dict['otp']=otp
-    created_user= await pending_collection.insert_one(resetcode_dict)
-    
-    # send the email to user for reset password with otp verification
-    sending_status=sendgrid_mail_to_user(email,otp)
 
-    if sending_status:
-        return{
+    # send the email to user for reset password with otp verification
+    html_content = f"""
+<div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #e0e0e0; padding: 30px; border-radius: 12px; max-width: 500px; margin: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+    <h2 style="color: #2c3e50; text-align: center; margin-top: 0;">Password Reset Request</h2>
+    
+    <p style="font-size: 16px; color: #34495e;">Hello,</p>
+    
+    <p style="font-size: 14px; color: #5f6368; line-height: 1.6;">
+        We received a request to reset the password for your account. Please use the <b>6-digit OTP</b> (One-Time Password) below to proceed with the recovery:
+    </p>
+    
+    <div style="background-color: #f8f9fa; border: 2px dashed #007bff; padding: 15px; text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 8px; color: #007bff; margin: 20px 0; border-radius: 8px;">
+        {otp}
+    </div>
+    
+    <p style="font-size: 13px; color: #e74c3c; font-weight: 500;">
+        ⚠️ This OTP is valid for only 5 minutes. For security reasons, do not share this code with anyone.
+    </p>
+    
+    <p style="font-size: 13px; color: #7f8c8d; font-style: italic; border-top: 1px solid #eee; padding-top: 15px;">
+        If you did not request a password reset, you can safely ignore this email. Your account is still secure.
+    </p>
+    
+    <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee;">
+        <p style="margin: 0; font-size: 14px; font-weight: bold; color: #2c3e50;">Best Regards,</p>
+        <p style="margin: 5px 0; font-size: 14px; color: #34495e;">Panku IT Services <span style="color: #7f8c8d; font-weight: normal;">| From NIT Patna</span></p>
+        <p style="margin: 5px 0 0 0; font-size: 11px; color: #95a5a6; text-transform: uppercase; letter-spacing: 1px;">
+            Ayodhya, Uttar Pradesh, India
+        </p>
+    </div>
+</div>
+"""
+    sending_status=send_smtp_email(email,otp,html_content)
+
+    if not sending_status:
+         raise HTTPException(status_code=500,detail="Something went wrong. Please try again later!")
+    
+    created_user= await pending_collection.insert_one(resetcode_dict)
+    return{
             "msg":"Success! We've sent a reset code (OTP) to your registered email to reset your password. Don't forget to check your spam!",
             "id":str(created_user.inserted_id)
-        }
-    else:
-        return{
-            "msg":"Something went wrong"
-        }
+    }
+    
+       
 
 
 """
@@ -226,9 +272,7 @@ async def reset_password(request:Request,reset_data:resetPassword_schema):
             "msg":"Your password has been updated now"
         }
     else:
-        return{
-            "msg":"OTP session expired or you entered wrong OTP !"
-        }
+        raise HTTPException(status_code=403,detail="OTP session expired or you entered wrong OTP !")
 
     
 

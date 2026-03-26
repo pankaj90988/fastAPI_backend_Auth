@@ -28,8 +28,8 @@ async def life_span(app:FastAPI):
        await app.state.pending_collection.create_index('created_at',expireAfterSeconds=300)
     except Exception as e:
         print(f"Error occur at startup:{e}")
-
-    yield
+    
+    yield 
 
     try:
         close_db_connection()
@@ -42,7 +42,7 @@ app=FastAPI(
     docs_url=None,
     redoc_url=None,
     openapi_url=None
-) #FastAPI Instance
+)  #FastAPI Instance
 
 
 """
@@ -51,13 +51,14 @@ ADDING MIDDLEWARE TO HANDLE THE CORS POLICY ERROR /
 DESCRIBED THAT FROM WHICH ORIGIN BACKEND ACCEPT THE REQUEST AND RESPOND IT
 ================================
 """
-# origins = [
-#     "http://localhost:5173",
-#     "http://127.0.0.1:5173"
-# ]
+origins = [
+    "https://techfrontend-auth.onrender.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
@@ -77,5 +78,5 @@ app.include_router(admin_route,tags=['Admin_Panel'],prefix='/api/admin-dashboard
 @app.get("/")
 async def root():
     return{
-        "msg":"Server is live now.."
+        "message":"Server is live now.."
     }

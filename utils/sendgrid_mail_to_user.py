@@ -1,3 +1,6 @@
+# ========================
+#  Free trial of SendGrid Expired
+# ========================
 import os
 from dotenv import load_dotenv
 load_dotenv()
@@ -37,3 +40,4 @@ def sendgrid_mail_to_user(user_email,otp):
     except Exception as e:
         print(f"Error occured: {e}")
         return False
+    

@@ -24,7 +24,7 @@ async def verify_session(request:Request,token:str=Depends(oauth2_schema)):
       
       db_session_id=user['session_id']
       if session_id != db_session_id:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED,detail='Unauthorized access, A new device login was detected for this account! from bc')
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED,detail='Unauthorized access, A new device login was detected for this account!')
       
       return{
             "msg":"Everything is fine"
