@@ -23,7 +23,8 @@ async def send_smtp_email(user_email,otp,specific_html_content):
     msg.add_alternative(html_content,subtype="html")
     
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com",465) as smtp:
+        with smtplib.SMTP("smtp.gmail.com",587,timeout=15) as smtp:
+            smtp.starttls()
             smtp.login(SENDER_EMAIL,SENDER_EMAIL_PASSWORD)
             smtp.send_message(msg)
         return True
